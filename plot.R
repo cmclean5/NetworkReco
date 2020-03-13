@@ -1,6 +1,6 @@
 require(ggplot2)
 
-df <- read.delim("datapoints_TestEM.csv",sep="\t",header=T)
+df <- read.delim("datapoints_simulatedData.csv",sep="\t",header=T)
 
 DF <- as.data.frame(df)
 
@@ -23,8 +23,10 @@ gplot <- ggplot(DF,aes(x=as.numeric(as.vector(DF[,1])),y=as.numeric(as.vector(DF
           panel.background = element_rect(fill = "white"),
           panel.border = element_rect(linetype="solid",fill=NA))+
     scale_color_manual("",breaks=levels(factor(DF[,3])),values=c(colours))+
+    scale_x_continuous(limits=c(0, 1), breaks=seq(0, 1, 0.2))+
+    scale_y_continuous(limits=c(0, 1), breaks=seq(0, 1, 0.2))
 
-    ggsave("TestEM.pdf", width = 20, height = 20, units = "cm")
+    ggsave("TestEM2.pdf", width = 20, height = 20, units = "cm")
 
 
 
