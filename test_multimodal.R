@@ -50,15 +50,15 @@ for( p in 1:modes ){
 Ecount <- list()
 Ncount <- list()
 
-for( p in 1:modes ){
+for( k in 1:modes ){
 
     N = sample(Nmeas,1)
 
-    Ncount[[p]]  <- N    
-    Ecount[[p]]  <- generateMeasurements(GG=Aij[[p]],GGname=names(Aij)[p],
-                                         Nrand=1, errorRate=errRates[p],
+    Ncount[[k]]  <- N    
+    Ecount[[k]]  <- generateMeasurements(GG=Aij[[k]],GGname=names(Aij)[k],
+                                         Nrand=1, errorRate=errRates[k],
                                          Nmeas=N)
-    names(Ecount)[p] <- sprintf("Ecount_%d",p)
+    names(Ecount)[k] <- sprintf("Ecount_%d",k)
 
 }
 
