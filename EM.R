@@ -12,7 +12,7 @@ setClass(Class="runEM",representation(
                            Qij="matrix",
                            steps="numeric",
                            ll="numeric",
-                           ll.diff="numeric",
+                           delta.diff="numeric",
                            converage="numeric") )			   
 
 
@@ -22,9 +22,9 @@ setClass(Class="EM",representation(
                         Qij="matrix",
                         steps="numeric",
                         ll="numeric",
-                        ll.diff="numeric",
+                        delta.diff="numeric",
                         converage="numeric",
-                        emTEST="vector") )			   
+                        emTESTS="vector") )			   
 
 #--- return edge odds ratio
 setClass(Class="OR",representation(
@@ -32,6 +32,11 @@ setClass(Class="OR",representation(
                         term1="list",
                         term2="list") )
 
+
+#--- return em stopping conditions
+setClass(Class="CND",representation(
+                        emTESTS="vector",
+                        delta.diff="vector") )
 
 
 print_params <- function( theta, modes ){
@@ -76,7 +81,7 @@ fix_all_params <- function( theta ){
     
 }
 
-use_constraints <- function( theta, const_min, const_max ){
+use_param_constraints <- function( theta, const_min, const_max ){
 
     if( is.na(const_min) ){ const_min = 0 }
     if( is.na(const_max) ){ const_max = 1 }
@@ -104,9 +109,9 @@ init_params <- function( theta, fix, const ){
     for( i in 1:N ){
         for( m in 1:length(theta[[i]]) ){
             if( !fix[[i]][m] ){
-                theta[[i]][1,m] <- use_constraints(as.numeric(theta[[i]][1,m]),
-                                                   as.numeric(const[[i]][1,m]),
-                                                   as.numeric(const[[i]][2,m]) )
+                theta[[i]][1,m] <- use_param_constraints(as.numeric(theta[[i]][1,m]),
+                                                         as.numeric(const[[i]][1,m]),
+                                                         as.numeric(const[[i]][2,m]) )
             }
         }
     }
@@ -124,6 +129,81 @@ init_qij <- function( gg, QQ ){
     tmp[ed] = runif(m)
 
     return(tmp)
+    
+}
+
+test_ll_convergance <- function( old.ll, new.ll ){
+
+    maxdelta = abs( abs(old.ll) - abs(new.ll) )
+
+    return(maxdelta)
+    
+}
+
+test_param_convergance <- function( old.theta, theta ){
+
+    maxdelta = 0
+    
+    N <- length(names(old.theta))
+    for( i in 1:N ){
+        if( is.matrix(old.theta[[i]]) ){            
+            nr = nrow(old.theta[[i]])
+            nc = ncol(old.theta[[i]])
+            for( r in 1:nr ){
+                for( c in 1:nc ){
+                    deltap = abs( theta[[i]][r,c] - old.theta[[i]][r,c])
+                    if( deltap > maxdelta ){ maxdelta = deltap }
+                }                
+            }
+        } else {
+            nr = length(old.theta[[i]])
+            for( r in 1:nr ){
+                deltap = abs( theta[[i]][r] - old.theta[[i]][r])
+                if( deltap > maxdelta ){ maxdelta = deltap }
+            }
+        }
+    }
+    
+
+    return(maxdelta)         
+
+}
+
+em_conditions <- function( max.steps, steps, ll, delta.diff, maxdelta, emTESTS ){
+
+    store.delta.N = length(delta.diff)
+
+    #--- test number of iterations taken
+    if( steps > max.steps ){
+        emTESTS[1] = 1
+        cat("Stopping because steps >", max.steps, "!\n")
+    }
+
+    #--- test if our current ll is nan?
+    if( is.nan(ll) ){
+        emTESTS[2] = 1
+        cat("Stopping because ll = nan!\n")
+    }
+
+    #--- test if old.ll < new.ll?
+    store.delta = grep(TRUE, is.na(delta.diff))
+    if( length(store.delta) > 0 ){
+        delta.diff[min(store.delta)] = maxdelta
+    } else {
+        if( (sum(diff(delta.diff) > 0) == (store.delta.N-1)) ){
+            emTESTS[3] = 1
+            cat("Stopping because diff.ll is increasing!\n")
+        } else {
+            tmp                      = rep(NA,store.delta.N)
+            tmp[1:(store.delta.N-1)] = delta.diff[2:store.delta.N]
+            tmp[store.delta.N]       = maxdelta
+            delta.diff               = tmp
+        }
+    }
+               
+    return(new("CND",
+               emTESTS=emTESTS,
+               delta.diff=delta.diff))
     
 }
 
@@ -286,7 +366,7 @@ adj.log <- function( scale.l=NULL, arg.l=NULL, epsilon=NULL ){
     if( !is.null(scale.l) && !is.null( arg.l ) ){
 
         if( is.null(epsilon) ){
-            epsilon = .Machine$double.eps
+            epsilon = 1e-100
         }
 
         if( (scale.l == 0) && (arg.l == 0) ){ return( 0 ) }
@@ -320,7 +400,8 @@ posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
     ll   <- 0
 
     if( is.null(epsilon) ){
-        epsilon = .Machine$double.eps
+        #epsilon = .Machine$double.eps
+        epsilon = 1e-100
     }
     
      for( i in 1:n ){
@@ -342,10 +423,10 @@ posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
                     alpha.m = alpha[1,k] 
                     beta.m  = beta[1,k]
 
-                   ll = ll + adj.log( scale.l=(aij*eij.m),         arg.l=alpha.m,     epsilon=epsilon ) +
-                             adj.log( scale.l=aij*(nij.m - eij.m), arg.l=(1-alpha.m), epsilon=epsilon ) +
-                             adj.log( scale.l=(1-aij)*eij.m,       arg.l=beta.m,      epsilon=epsilon ) +
-                             adj.log( scale.l=(1-aij)*(nij.m - eij.m), arg.l=(1-beta.m), epsilon=epsilon )
+                   ll = ll + adj.log( scale.l=(aij*eij.m),           arg.l=alpha.m,     epsilon=epsilon ) +
+                             adj.log( scale.l=aij*(nij.m-eij.m),     arg.l=(1-alpha.m), epsilon=epsilon ) +
+                             adj.log( scale.l=(1-aij)*eij.m,         arg.l=beta.m,      epsilon=epsilon ) +
+                             adj.log( scale.l=(1-aij)*(nij.m-eij.m), arg.l=(1-beta.m),  epsilon=epsilon )
 
                 }                    
             }
@@ -414,10 +495,11 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
     
 }
 
-em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps, initPARAMS, fixPARAMS, constPARAMS, epsilon, store.diff.ll.N ){
+em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
+               initPARAMS, fixPARAMS, constPARAMS,
+               epsilon, store.delta.N, e.first, conv.params ){
 
-    exp.first = TRUE
-
+    
     #--- No: of nodes in graph    
     n <- length(V(Adj))
     
@@ -431,33 +513,36 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps, initPARAMS, f
         Qij    <- init_qij( gg=Adj, QQ=Qij )
         params <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
     } else {
-        exp.first = FALSE
+        e.first = FALSE
         params <- init_params(initPARAMS, fixPARAMS, constPARAMS) 
         Qij    <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
     }
-    
+
+    #--- print expected param values
     cat("init params: \n")
     print_params( params, modes )
     
     #--- em alg. steps    
     steps = maxdelta = 1
 
-    #--- em test flags  
-    emTEST = rep(0,length=3)
+    #--- em test condition flags  
+    emTESTS = rep(0,length=3)
 
 
-    if( max.steps < store.diff.ll.N ){ store.diff.ll.N = max.steps }
+    if( max.steps < store.delta.N ){ store.delta.N = max.steps }
     
-    ll.diff = rep(NA,length=store.diff.ll.N)
+    delta.diff = rep(NA,length=store.delta.N)
     
     
     #run the em algo.
     while( maxdelta > tol ) {
     
         #--- record old ll for run
-        old.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params, epsilon=epsilon )
-
-        if( exp.first ){        
+        if( !conv.params ){
+            old.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params, epsilon=epsilon )
+        }
+        
+        if( e.first ){        
         #--- expectation step
         Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
         }
@@ -466,56 +551,37 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps, initPARAMS, f
         old.params <- params
         params     <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
 
-        if( !exp.first ){        
+        if( !e.first ){        
         #--- expectation step
         Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
-        }
-        
+        }        
                 
         #--- record new ll for run
         new.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params, epsilon=epsilon )
         
+        
         #--- test convergence of parameters        
-        maxdelta = abs( abs(old.ll) - abs(new.ll) )
-        cat(" LL_old ", old.ll ," LL_new ", new.ll, " LL.diff ", maxdelta , "\n")
+        if( conv.params ){
+            maxdelta = test_param_convergance( old.params, params )
+        } else {
+            #--- test convergence of ll
+            maxdelta = test_ll_convergance( old.ll, new.ll )
+        }
+
+        #--- print expected param values
+        cat(" EM step ", steps, " , max change = ", maxdelta, "\n")
         cat(" params: \n")
         print_params( params, modes )
-   
-    
-        #--- EM STOPPING CONDITIONS ---# 
         
-        #--- test number of iterations taken
+            
+        #--- EM STOPPING CONDITIONS ---# 
         steps = steps + 1
-        if( steps > max.steps ){
-            emTEST[1] = 1
-            cat("Stopping because steps >", max.steps, "!\n")
-            break
-        }
-
-         #--- test if our current ll is nan?
-        if( is.nan(new.ll) ){
-            emTEST[2] = 1
-            cat("Stopping because ll = nan!\n")
-            break
-        }
-
-        #--- test if old.ll < new.ll?
-        store.ll = grep(TRUE, is.na(ll.diff))
-        if( length(store.ll) > 0 ){
-            ll.diff[min(store.ll)] = maxdelta
-        } else {
-            if( (sum(diff(ll.diff) > 0) == (store.diff.ll.N-1)) ){
-                emTEST[3] = 1
-                cat("Stopping because diff.ll is increasing!\n")
-                break
-            } else {
-                tmp                        = rep(NA,store.diff.ll.N)
-                tmp[1:(store.diff.ll.N-1)] = ll.diff[2:store.diff.ll.N]
-                tmp[store.diff.ll.N]       = maxdelta
-                ll.diff                    = tmp
-            }
-        }
-               
+        tests = em_conditions( max.steps=max.steps, steps=steps, ll=new.ll,
+                               delta.diff=delta.diff, maxdelta=maxdelta,
+                               emTESTS=emTESTS )
+        if( sum(tests@emTESTS) > 0 ){ break; }
+        emTESTS    = tests@emTESTS
+        delta.diff = tests@delta.diff                       
         #--- EM STOPPING CONDITIONS ---# 
 
         
@@ -529,14 +595,16 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps, initPARAMS, f
                Qij=Qij,
                steps=steps,
                ll=new.ll,
-               ll.diff=maxdelta,
+               delta.diff=maxdelta,
                converage=converage,
-               emTEST=emTEST))
+               emTESTS=emTESTS))
     
 }
  
-    
-run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPARAMS=NULL, fixPARAMS=NULL, constPARAMS=NULL, epsilon=NULL, store.diff.ll.N=2 ){
+##tol=1e-5    
+run.em <- function( Adj, obs, meas, tol=1e-4, max.steps=1e3, restarts=10,
+                   initPARAMS=NULL, fixPARAMS=NULL, constPARAMS=NULL,
+                   epsilon=NULL, store.delta.N=2, e.first=TRUE, conv.params=TRUE ){
 
     #--- No: of nodes in graph    
     n <- length(V(Adj))
@@ -544,10 +612,9 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
     #--- No: of edges in graph                  
     m <- length(E(Adj))
 
+    #--- No: of 
     modes <- length(obs)
 
-    #nmeas <- Nmeas[study]
-    
     #--- format edge measurements     
     #Nij <- list2matrix( meas[study], NN )
     #Nij = ifelse(Nij > 0, nmeas,0) ##test
@@ -572,7 +639,7 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
     # beta  ==> false-positive rate, prob observing an edge where none exists
     #---
 
-    rho   = NA
+    rho   = matrix(NA, ncol=1,     nrow=1)
     alpha = matrix(NA, ncol=modes, nrow=1)
     beta  = matrix(NA, ncol=modes, nrow=1)
         
@@ -592,7 +659,7 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
          params[[3]] = initPARAMS[[which(names(initPARAMS)=="beta")]]
          if( is.null(fixPARAMS) ){
              fixPARAMS <- list()
-             fixPARAMS[[1]] = 0
+             fixPARAMS[[1]] = matrix(0,ncol=1, nrow=1)
              names(fixPARAMS)[1] = "rho"
              fixPARAMS[[2]] = matrix(0,ncol=modes, nrow=1)
              names(fixPARAMS)[2] = "alpha"
@@ -617,41 +684,40 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
 
     foundMin = rep(FALSE, length=3)
     f=1
-
     
-    
-    res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes,
-               tol=tol, max.steps=max.steps, initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS, epsilon=epsilon, store.diff.ll.N=store.diff.ll.N )
+    res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes,tol=tol, max.steps=max.steps,
+               initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
+               epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
     
     #--- the parameters to retrun
     save.steps     = res@steps;
     save.params    = res@params;
     save.Q         = res@Qij;
     save.ll        = res@ll;
-    save.ll.diff   = res@ll.diff;
+    save.diff      = res@delta.diff;
     save.converage = res@converage;
 
     cat("init.ll ", save.ll, "\n")
     
     for( r in 1:restarts ){
 
-        res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes, 
-                  tol=tol, max.steps=max.steps, initPARAMS=initPARAMS, fixPARAMS=fixPARAMS,
-                  constPARAMS=constPARAMS, epsilon=epsilon, store.diff.ll.N=store.diff.ll.N )
+        res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes, tol=tol, max.steps=max.steps,
+                  initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
+                  epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
 
         #--- if we didn't converage, because we ran out of steps, should we retart res?
-        if( res@emTEST[1] == 1 ){
+        if( res@emTESTS[1] == 1 ){
             cat("ran out of steps, try restarting...")
-            res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=res@Qij, params=res@params, modes=modes,
-                      tol=tol, max.steps=max.steps, initPARAMS=res@params,
-                      fixPARAMS=fix_all_params(res@params), constPARAMS=constPARAMS, epsilon=epsilon,
-                      store.diff.ll.N=store.diff.ll.N )
+            res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=res@Qij, params=res@params, modes=modes, tol=tol, max.steps=max.steps,
+                      initPARAMS=res@params, fixPARAMS=fix_all_params(res@params), constPARAMS=constPARAMS,
+                      epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
             cat(" done.\n")
+            res@steps = max.steps + res@steps
         }
         
         cat("saved.ll ", save.ll, " new.ll ", res@ll, "...")
 
-        if( res@emTEST[3] == 0 ){
+        if( res@emTESTS[3] == 0 ){
             if( abs(res@ll) < abs(save.ll) ){
                 cat(" will save new.ll result.\n")
                 #--- the parameters to retrun
@@ -659,11 +725,11 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
                 save.params    = res@params;
                 save.Q         = res@Qij;
                 save.ll        = res@ll;
-                save.ll.diff   = res@ll.diff;
+                save.diff      = res@delta.diff;
                 save.converage = res@converage;
             } else {
                 if( abs(res@ll) == abs(save.ll) ){ foundMin[f] = TRUE; f=f+1; }
-                cat(" continue.\n")
+                cat(" will continue.\n")
             }
         }
 
@@ -682,7 +748,7 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10, initPA
                Qij=save.Q,
                steps=save.steps,
                ll=save.ll,
-               ll.diff=save.ll.diff,
+               delta.diff=save.diff,
                converage=save.converage))
     
 }

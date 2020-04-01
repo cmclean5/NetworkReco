@@ -76,11 +76,11 @@ if ( 0 ){
 recall     = matrix(0,ncol=(1+length(Nmeas)), nrow=points )
 recall[,1] = errRates
 
-conv     = matrix(1,ncol=(1+length(Nmeas)), nrow=points )
-conv[,1] = errRates
+conv       = matrix(1,ncol=(1+length(Nmeas)), nrow=points )
+conv[,1]   = errRates
 
-LLdiff     = matrix(0,ncol=(1+length(Nmeas)), nrow=points )
-LLdiff[,1] = errRates
+diff       = matrix(0,ncol=(1+length(Nmeas)), nrow=points )
+diff[,1]   = errRates
 
 
 for(N in 1:length(Nmeas) ){
@@ -103,11 +103,15 @@ for(N in 1:length(Nmeas) ){
     
     RES <- list()
     restarts=10
-    epsilon=1e-30
+    epsilon=1e-100
+    tol=1e-5
     for( p in 1:points ){
 
         
-        RES[[p]] = run.em(Adj=Aij[[p]], meas=Nmeas, obs=Ecount[[p]], max.steps=steps[p], restarts=restarts, epsilon=epsilon, store.diff.ll.N=ceiling(steps[p]/2))
+        RES[[p]] = run.em( Adj=Aij[[p]], meas=Nmeas[N], obs=Ecount[[p]],
+                          max.steps=steps[p], restarts=restarts,
+                          epsilon=epsilon, store.delta.N=ceiling(steps[p]/2),
+                          conv.params=FALSE, tol=tol )
         names(RES)[p] = sprintf("N_%d_errorRate_%.1f",Nmeas[N],errRates[p])
 
         cat("> RES for errorRate : ", errRates[p], " converage: ", RES[[p]]@converage,".\n")
@@ -115,11 +119,11 @@ for(N in 1:length(Nmeas) ){
         val = RES[[p]]@Qij[get.edgelist(Aij[[p]])]
         recall[p,(N+1)] = sum(val > 0.5)/m
         conv[p,(N+1)]   = RES[[p]]@converage
-        LLdiff[p,(N+1)] = RES[[p]]@ll.diff
+        diff[p,(N+1)]   = RES[[p]]@delta.diff
         
         write.table(recall,"recall.csv",sep="\t", row.names=F, col.names=T, quote=F)
         write.table(conv,"converage.csv",sep="\t", row.names=F, col.names=T, quote=F)
-        write.table(LLdiff,"LLdiff.csv",sep="\t", row.names=F, col.names=T, quote=F)
+        write.table(diff,"deltadiff.csv",sep="\t", row.names=F, col.names=T, quote=F)
         
     }
 
