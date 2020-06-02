@@ -208,7 +208,7 @@ em_conditions <- function( max.steps, steps, ll, delta.diff, maxdelta, emTESTS )
 }
 
 
-Qij.param <- function( meas, obs, theta, modes ){
+Qij.param <- function( meas, obs, theta, modes, SMALL ){
 
     Nij   = meas
     Eij   = obs
@@ -231,9 +231,7 @@ Qij.param <- function( meas, obs, theta, modes ){
     num = prod(num.m)
     dem = num + prod(dem.m)    
     
-    Qij = 0
-
-    if( dem != 0 ){ Qij = num / dem }
+    Qij = (num+SMALL) / (dem+SMALL) 
     
     return(Qij)
     
@@ -241,7 +239,7 @@ Qij.param <- function( meas, obs, theta, modes ){
 
 # The e-step calculates the prosterior distribution over networks, given 
 # our model parameters, theta, from the m-step.
-e.step <- function( n, QQ, meas, obs, theta){
+e.step <- function( n, QQ, meas, obs, theta, SMALL){
 
     # the number of multimodes in study
     modes  <- length(obs) 
@@ -262,7 +260,7 @@ e.step <- function( n, QQ, meas, obs, theta){
                     eij.m[1,k] = obs[[k]][i,j]
                 }
                 
-                QQ[i,j] = Qij.param( meas=nij.m, obs=eij.m, theta=theta, modes=modes ) 
+                QQ[i,j] = Qij.param( meas=nij.m, obs=eij.m, theta=theta, modes=modes, SMALL=SMALL ) 
             }
 
         }
@@ -288,7 +286,7 @@ beta.m <- function( qij, nij, eij ){
 
 
 # At least obs must be a list of size m.
-m.step <- function( n, QQ, meas, obs, theta ){
+m.step <- function( n, QQ, meas, obs, theta, SMALL ){
 
     # the number of multimodes in study
     modes  <- length(obs) 
@@ -335,21 +333,14 @@ m.step <- function( n, QQ, meas, obs, theta ){
 
     for( k in 1:modes ){
     
-        if( dem_alpha[1,k] != 0 ){
-            h_alpha[1,k] = num_alpha[1,k] / dem_alpha[1,k]
-        }
-
-        if( dem_beta[1,k] != 0 ){
-            h_beta[1,k]  = num_beta[1,k] / dem_beta[1,k]
-        }
-
+        h_alpha[1,k] = (num_alpha[1,k]+SMALL) / (dem_alpha[1,k]+SMALL)
+        
+        h_beta[1,k]  = (num_beta[1,k]+SMALL) / (dem_beta[1,k]+SMALL)
     }
     
     dem_rho = choose( n, 2 ) 
-    if( dem_rho != 0 ){
-        h_rho   = num_rho / dem_rho
-    }
-
+    h_rho   = (num_rho+SMALL) / (dem_rho+SMALL)
+    
     theta[[which(names(theta)=="rho")]]   = h_rho
     theta[[which(names(theta)=="alpha")]] = h_alpha
     theta[[which(names(theta)=="beta")]]  = h_beta
@@ -490,7 +481,7 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
 
 em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
                initPARAMS, fixPARAMS, constPARAMS,
-               store.delta.N, e.first, conv.params ){
+               store.delta.N, e.first, conv.params, SMALL ){
 
     
     #--- No: of nodes in graph    
@@ -504,11 +495,11 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
     #--- Init-step: assign random values to the model's parameters
     if( is.null(initPARAMS) ){
         Qij    <- init_qij( gg=Adj, QQ=Qij )
-        params <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
+        params <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
     } else {
         e.first = FALSE
         params <- init_params(initPARAMS, fixPARAMS, constPARAMS) 
-        Qij    <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
+        Qij    <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
     }
 
     #--- print expected param values
@@ -537,16 +528,16 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
         
         if( e.first ){        
         #--- expectation step
-        Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
+        Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
         }
         
         #--- maximazation step
         old.params <- params
-        params     <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
+        params     <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
 
         if( !e.first ){        
         #--- expectation step
-        Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params)
+        Qij        <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
         }        
                 
         #--- record new ll for run
@@ -596,7 +587,7 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
  
 run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10,
                    initPARAMS=NULL, fixPARAMS=NULL, constPARAMS=NULL,
-                   store.delta.N=2, e.first=TRUE, conv.params=TRUE ){
+                   store.delta.N=2, e.first=TRUE, conv.params=TRUE, SMALL=1e-100 ){
 
     #--- No: of nodes in graph    
     n <- length(V(Adj))
@@ -679,7 +670,7 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10,
     
     res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes,tol=tol, max.steps=max.steps,
                initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
-               store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+               store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params, SMALL=SMALL )
     
     #--- the parameters to retrun
     save.steps     = res@steps;
@@ -695,14 +686,14 @@ run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10,
 
         res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes, tol=tol, max.steps=max.steps,
                   initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
-                  store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+                  store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params, SMALL=SMALL )
 
         #--- if we didn't converage, because we ran out of steps, should we retart res?
         if( res@emTESTS[1] == 1 ){
             cat("ran out of steps, try restarting...")
             res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=res@Qij, params=res@params, modes=modes, tol=tol, max.steps=max.steps,
                       initPARAMS=res@params, fixPARAMS=fix_all_params(res@params), constPARAMS=constPARAMS,
-                      store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+                      store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params, SMALL=SMALL )
             cat(" done.\n")
             res@steps = max.steps + res@steps
         }

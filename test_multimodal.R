@@ -12,6 +12,9 @@ rm(list=ls())
 require(igraph)
 library(methods)
 
+#--- set random number seed
+set.seed(101)
+
 # load EM functions
 source('EM.R')
 # load Random_Measurement functions

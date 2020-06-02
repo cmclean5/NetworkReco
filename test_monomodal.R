@@ -12,6 +12,9 @@ rm(list=ls())
 require(igraph)
 library(methods)
 
+#--- set random number seed
+set.seed(101)
+
 # load EM functions
 source('EM.R')
 # load Random_Measurement functions
@@ -102,8 +105,8 @@ for(N in 1:length(Nmeas) ){
 
     
     RES <- list()
-    restarts=3#10
-    tol=1e-7#1e-5
+    restarts=10
+    tol=1e-5
     conv.params = TRUE
     for( p in 1:points ){
 

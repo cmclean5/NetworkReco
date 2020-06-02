@@ -4,18 +4,18 @@
 
 
 #--- reset
-rm(list=ls())
+#rm(list=ls())
 
 #--- imports/headers
-require(igraph)
+#require(igraph)
   
 #--- set random number seed
-set.seed(101)
+#set.seed(101)
 
 
 list2matrix <- function( LL, NN, byROW=FALSE ){
 
-    MM <- matrix(unlist(LL),ncol=N,byrow=byROW)
+    MM <- matrix(as.vector(unlist(LL)),ncol=N,byrow=byROW)
     return(MM)
 
 }
@@ -128,46 +128,6 @@ Test <- function( GG, MM ){
 
     return(xx)
     
-}
-
-#--- number of nodes
-N = 200
-
-#--- number of edges
-M = 1000
-
-#--- No: of measurements
-Nmeas = c(4,8,16)
-
-errRates <- seq(0,M,100)/M
-
-#--- number of points
-points <- length(errRates)
-
-
-#--- generate our ground truth Aij's for each point
-Aij <- list()
-
-#--- generate Bernoulli random graph with n=200 and <k> = 10
-adj <- sample_gnm(n=N,m=M,directed=F,loops=F)
-
-for( p in 1:points ){
-    Aij[[p]]      <- adj
-    names(Aij)[p] <- sprintf("Aij_%d",p)
-}
-
-
-#--- generate measurements for each Aij
-Ecount <- list()
-#Ncount <- list()
-
-for( p in 1:points ){
-
-    Ecount[[p]]  <- generateMeasurements(GG=Aij[[p]],GGname=names(Aij)[p],
-                                         Nrand=1, errorRate=errRates[p],
-                                         Nmeas=c(8))
-    names(Ecount)[p] <- sprintf("Ecount_%d",p)
-
 }
 
 
