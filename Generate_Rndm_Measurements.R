@@ -10,7 +10,14 @@
 #require(igraph)
   
 #--- set random number seed
-#set.seed(101)
+setSeed <- function(SEED){
+    if( is.null(SEED) ){
+        SEED = as.integer(Sys.time())
+        set.seed(SEED)
+    } else {
+        set.seed(SEED)
+    }
+}
 
 
 list2matrix <- function( LL, NN, byROW=FALSE ){
@@ -28,8 +35,10 @@ realEdge <- function( GG, ED ){
     
 }
 
-generateMeasurements <- function( GG, GGname, Nrand, errorRate, Nmeas=c(4,8,16)  ){
+generateMeasurements <- function( GG, GGname, Nrand, errorRate, Nmeas=c(4,8,16), SEED=NULL  ){
 
+    setSeed(SEED)
+    
     Ntot  <- length(V(GG))
     Mtot  <- length(E(GG))
 

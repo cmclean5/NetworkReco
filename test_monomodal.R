@@ -13,7 +13,7 @@ require(igraph)
 library(methods)
 
 #--- set random number seed
-set.seed(101)
+seed=101
 
 # load EM functions
 source('EM.R')
@@ -96,7 +96,7 @@ for(N in 1:length(Nmeas) ){
 
         Ecount[[p]]  <- generateMeasurements(GG=Aij[[p]],GGname=names(Aij)[p],
                                              Nrand=1, errorRate=errRates[p],
-                                             Nmeas=Nmeas[N])
+                                             Nmeas=Nmeas[N], SEED=seed)
         names(Ecount)[p] <- sprintf("Ecount_%d",p)
 
     }
@@ -105,7 +105,7 @@ for(N in 1:length(Nmeas) ){
 
     
     RES <- list()
-    restarts=10
+    restarts=3#10
     tol=1e-5
     conv.params = TRUE
     for( p in 1:points ){

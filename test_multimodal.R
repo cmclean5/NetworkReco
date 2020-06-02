@@ -13,7 +13,7 @@ require(igraph)
 library(methods)
 
 #--- set random number seed
-set.seed(101)
+seed=101
 
 # load EM functions
 source('EM.R')
@@ -60,7 +60,7 @@ for( k in 1:modes ){
     Ncount[[k]]  <- N    
     Ecount[[k]]  <- generateMeasurements(GG=Aij[[k]],GGname=names(Aij)[k],
                                          Nrand=1, errorRate=errRates[k],
-                                         Nmeas=N)
+                                         Nmeas=N, SEED=seed)
     names(Ecount)[k] <- sprintf("Ecount_%d",k)
 
 }
