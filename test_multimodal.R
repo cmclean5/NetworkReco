@@ -88,11 +88,10 @@ if ( 0 ){
 RES <- list()
 steps=10
 restarts=10
-epsilon=1e-100
 tol=1e-5
 
 RES[[1]] = run.em(Adj=Aij[[1]], meas=Ncount, obs=Ecount,
-                  max.steps=steps, restarts=restarts, epsilon=epsilon,
+                  max.steps=steps, restarts=restarts, 
                   store.delta.N=ceiling(steps/2), conv.params=TRUE, tol=tol)
 
 val = RES[[1]]@Qij[get.edgelist(Aij[[1]])]

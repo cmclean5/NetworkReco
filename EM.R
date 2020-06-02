@@ -361,28 +361,26 @@ m.step <- function( n, QQ, meas, obs, theta ){
 
 
 
-adj.log <- function( scale.l=NULL, arg.l=NULL, epsilon=NULL ){
+adj.log <- function( scale.l=NULL, arg.l=NULL ){
 
+    result = 0
+    
     if( !is.null(scale.l) && !is.null( arg.l ) ){
 
-        if( is.null(epsilon) ){
-            epsilon = 1e-100
-        }
-
-        if( (scale.l == 0) && (arg.l == 0) ){ return( 0 ) }
-        else{
-            return( (scale.l + epsilon)*log(arg.l+epsilon) )
-        }
-        
+        if( (scale.l == 0) && (arg.l == 0) ){
+            result = 0
+        } else{
+            result = scale.l*log(arg.l)
+        }        
     }
 
-    return(0)
+    return(result)
     
 }
 
 # return the log-likelihood of the posterior, i.e. P(A,theta | data)
 # See ref [2] eqn S4
-posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
+posterior <- function( gg, QQ, meas, obs, theta ){
 
     n   <- length(V(gg))
     Aij <- get.adjacency(gg)
@@ -399,11 +397,6 @@ posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
     #log likelihood
     ll   <- 0
 
-    if( is.null(epsilon) ){
-        #epsilon = .Machine$double.eps
-        epsilon = 1e-100
-    }
-    
      for( i in 1:n ){
         for( j in 1:n ){
 
@@ -412,8 +405,8 @@ posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
                 #qij = QQ[i,j]
                 aij = Aij[i,j]               
 
-                ll = ll + adj.log( scale.l=aij,     arg.l=rho,     epsilon=epsilon ) +
-                          adj.log( scale.l=(1-aij), arg.l=(1-rho), epsilon=epsilon )
+                ll = ll + adj.log( scale.l=aij,     arg.l=rho     ) +
+                          adj.log( scale.l=(1-aij), arg.l=(1-rho) )
                 
                 for( k in 1:modes ){
 
@@ -423,10 +416,10 @@ posterior <- function( gg, QQ, meas, obs, theta, epsilon=NULL){
                     alpha.m = alpha[1,k] 
                     beta.m  = beta[1,k]
 
-                   ll = ll + adj.log( scale.l=(aij*eij.m),           arg.l=alpha.m,     epsilon=epsilon ) +
-                             adj.log( scale.l=aij*(nij.m-eij.m),     arg.l=(1-alpha.m), epsilon=epsilon ) +
-                             adj.log( scale.l=(1-aij)*eij.m,         arg.l=beta.m,      epsilon=epsilon ) +
-                             adj.log( scale.l=(1-aij)*(nij.m-eij.m), arg.l=(1-beta.m),  epsilon=epsilon )
+                   ll = ll + adj.log( scale.l=(aij*eij.m),           arg.l=alpha.m    ) +
+                             adj.log( scale.l=aij*(nij.m-eij.m),     arg.l=(1-alpha.m)) +
+                             adj.log( scale.l=(1-aij)*eij.m,         arg.l=beta.m     ) +
+                             adj.log( scale.l=(1-aij)*(nij.m-eij.m), arg.l=(1-beta.m) )
 
                 }                    
             }
@@ -497,7 +490,7 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
 
 em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
                initPARAMS, fixPARAMS, constPARAMS,
-               epsilon, store.delta.N, e.first, conv.params ){
+               store.delta.N, e.first, conv.params ){
 
     
     #--- No: of nodes in graph    
@@ -539,7 +532,7 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
     
         #--- record old ll for run
         if( !conv.params ){
-            old.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params, epsilon=epsilon )
+            old.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params )
         }
         
         if( e.first ){        
@@ -557,7 +550,7 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
         }        
                 
         #--- record new ll for run
-        new.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params, epsilon=epsilon )
+        new.ll     <- posterior( gg=Adj, QQ=Qij, meas=Nij, obs=Eij, theta=params )
         
         
         #--- test convergence of parameters        
@@ -601,10 +594,9 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
     
 }
  
-##tol=1e-5    
-run.em <- function( Adj, obs, meas, tol=1e-4, max.steps=1e3, restarts=10,
+run.em <- function( Adj, obs, meas, tol=1e-5, max.steps=1e3, restarts=10,
                    initPARAMS=NULL, fixPARAMS=NULL, constPARAMS=NULL,
-                   epsilon=NULL, store.delta.N=2, e.first=TRUE, conv.params=TRUE ){
+                   store.delta.N=2, e.first=TRUE, conv.params=TRUE ){
 
     #--- No: of nodes in graph    
     n <- length(V(Adj))
@@ -687,7 +679,7 @@ run.em <- function( Adj, obs, meas, tol=1e-4, max.steps=1e3, restarts=10,
     
     res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes,tol=tol, max.steps=max.steps,
                initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
-               epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+               store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
     
     #--- the parameters to retrun
     save.steps     = res@steps;
@@ -703,14 +695,14 @@ run.em <- function( Adj, obs, meas, tol=1e-4, max.steps=1e3, restarts=10,
 
         res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=Q, params=params, modes=modes, tol=tol, max.steps=max.steps,
                   initPARAMS=initPARAMS, fixPARAMS=fixPARAMS, constPARAMS=constPARAMS,
-                  epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+                  store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
 
         #--- if we didn't converage, because we ran out of steps, should we retart res?
         if( res@emTESTS[1] == 1 ){
             cat("ran out of steps, try restarting...")
             res <- em( Adj=Adj, Nij=Nij, Eij=Eij, Qij=res@Qij, params=res@params, modes=modes, tol=tol, max.steps=max.steps,
                       initPARAMS=res@params, fixPARAMS=fix_all_params(res@params), constPARAMS=constPARAMS,
-                      epsilon=epsilon, store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
+                      store.delta.N=store.delta.N, e.first=e.first, conv.params=conv.params )
             cat(" done.\n")
             res@steps = max.steps + res@steps
         }
