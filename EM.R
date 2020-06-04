@@ -213,7 +213,7 @@ Qij.param <- function( meas, obs, theta, modes, SMALL ){
     Nij   = meas
     Eij   = obs
     
-    rho   = theta[[which(names(theta)=="rho")]]
+    rho   = theta[[which(names(theta)=="rho")]][1,1]
     alpha = theta[[which(names(theta)=="alpha")]]
     beta  = theta[[which(names(theta)=="beta")]]
 
@@ -293,7 +293,7 @@ m.step <- function( n, QQ, meas, obs, theta, SMALL ){
 
     h_alpha = matrix(0,ncol=modes, nrow=1)
     h_beta  = matrix(0,ncol=modes, nrow=1)
-    h_rho   = 0
+    h_rho   = matrix(0,ncol=1,     nrow=1)
 
     num_alpha = matrix(0,ncol=modes, nrow=1)
     num_beta  = matrix(0,ncol=modes, nrow=1)
@@ -338,8 +338,8 @@ m.step <- function( n, QQ, meas, obs, theta, SMALL ){
         h_beta[1,k]  = (num_beta[1,k]+SMALL) / (dem_beta[1,k]+SMALL)
     }
     
-    dem_rho = choose( n, 2 ) 
-    h_rho   = (num_rho+SMALL) / (dem_rho+SMALL)
+    dem_rho    = choose( n, 2 ) 
+    h_rho[1,1] = (num_rho+SMALL) / (dem_rho+SMALL)
     
     theta[[which(names(theta)=="rho")]]   = h_rho
     theta[[which(names(theta)=="alpha")]] = h_alpha
@@ -381,7 +381,7 @@ posterior <- function( gg, QQ, meas, obs, theta ){
     Nij   = meas
     Eij   = obs
     
-    rho   = theta[[which(names(theta)=="rho")]]
+    rho   = theta[[which(names(theta)=="rho")]][1,1]
     alpha = theta[[which(names(theta)=="alpha")]]
     beta  = theta[[which(names(theta)=="beta")]]
     
@@ -431,7 +431,7 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
 
     modes <- length(obs)
     
-    rho   = theta[[which(names(theta)=="rho")]]
+    rho   = theta[[which(names(theta)=="rho")]][1,1]
     alpha = theta[[which(names(theta)=="alpha")]]
     beta  = theta[[which(names(theta)=="beta")]]
 
@@ -498,7 +498,7 @@ em <- function( Adj, Nij, Eij, Qij, params, modes, tol, max.steps,
         params <- m.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
     } else {
         e.first = FALSE
-        params <- init_params(initPARAMS, fixPARAMS, constPARAMS) 
+        params <- init_params(initPARAMS, fixPARAMS, constPARAMS)
         Qij    <- e.step( n=n, QQ=Qij, meas=Nij, obs=Eij, theta=params, SMALL=SMALL)
     }
 

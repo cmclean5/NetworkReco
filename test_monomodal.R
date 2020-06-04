@@ -59,14 +59,25 @@ for( p in 1:points ){
 
 # test
 if ( 0 ){
+    modes     <- 1
     my.params <- list()
-    my.params[[1]] = m/choose(n,2)
+    my.params[[1]]      = matrix(0,ncol=1, nrow=1)
+    my.params[[1]][1,1] = m/choose(n,2)
     names(my.params)[1] = "rho"
-    my.params[[2]] = 0
+    my.params[[2]] = matrix(0,ncol=modes, nrow=1)
     names(my.params)[2] = "alpha"
-    my.params[[3]] = 0
+    my.params[[3]] = matrix(0,ncol=modes, nrow=1)
     names(my.params)[3] = "beta"
 
+    my.fix <- list()
+    my.fix[[1]]      = matrix(0,ncol=1, nrow=1)
+    my.fix[[1]][1,1] = 1
+    names(my.fix)[1] = "rho"
+    my.fix[[2]] = matrix(0,ncol=modes, nrow=1)
+    names(my.fix)[2] = "alpha"
+    my.fix[[3]] = matrix(0,ncol=modes, nrow=1)
+    names(my.fix)[3] = "beta"
+   
     my.const <- list()
     my.const[[1]] = c(0.01, 0.01)
     names(my.const)[1] = "rho"
@@ -97,6 +108,7 @@ for(N in 1:length(Nmeas) ){
         Ecount[[p]]  <- generateMeasurements(GG=Aij[[p]],GGname=names(Aij)[p],
                                              Nrand=1, errorRate=errRates[p],
                                              Nmeas=Nmeas[N], SEED=seed)
+        
         names(Ecount)[p] <- sprintf("Ecount_%d",p)
 
     }
@@ -105,7 +117,7 @@ for(N in 1:length(Nmeas) ){
 
     
     RES <- list()
-    restarts=3#10
+    restarts=10
     tol=1e-5
     conv.params = TRUE
     for( p in 1:points ){
@@ -113,8 +125,8 @@ for(N in 1:length(Nmeas) ){
         
         RES[[p]] = run.em( Adj=Aij[[p]], meas=Nmeas[N], obs=Ecount[[p]],
                           max.steps=steps[p], restarts=restarts,
-                          store.delta.N=ceiling(steps[p]/2),
-                          conv.params=conv.params, tol=tol )
+                          store.delta.N=ceiling(steps[p]/2))
+        
         names(RES)[p] = sprintf("N_%d_errorRate_%.1f",Nmeas[N],errRates[p])
 
         cat("> RES for errorRate : ", errRates[p], " converage: ", RES[[p]]@converage,".\n")
