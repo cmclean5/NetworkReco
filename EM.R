@@ -354,14 +354,15 @@ m.step <- function( n, QQ, meas, obs, theta, SMALL ){
 
 adj.log <- function( scale.l=NULL, arg.l=NULL ){
 
-    result = 0
+    result  = 0
+    epsilon = 1e-100 
     
     if( !is.null(scale.l) && !is.null( arg.l ) ){
 
         if( (scale.l == 0) && (arg.l == 0) ){
             result = 0
         } else{
-            result = scale.l*log(arg.l)
+            result = (scale.l+epsilon)*log((arg.l+epsilon))
         }        
     }
 
