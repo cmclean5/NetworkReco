@@ -208,6 +208,24 @@ em_conditions <- function( max.steps, steps, ll, delta.diff, maxdelta, emTESTS )
 }
 
 
+ratio <- function( num, dem, SMALL=1e-100 ){
+
+    result = 0.0
+
+    if( num == 0 && dem == 0 ){ 
+        result = 0
+    } else {
+
+        if( dem == 0 ){ dem = dem + SMALL }
+
+        result = num / dem
+
+    }
+
+    return(result)
+
+}
+
 Qij.param <- function( meas, obs, theta, modes, SMALL ){
 
     Nij   = meas
@@ -231,7 +249,7 @@ Qij.param <- function( meas, obs, theta, modes, SMALL ){
     num = prod(num.m)
     dem = num + prod(dem.m)    
     
-    Qij = (num+SMALL) / (dem+SMALL) 
+    Qij = ratio( num=num, dem=dem, SMALL=SMALL )#(num+SMALL) / (dem+SMALL) 
     
     return(Qij)
     
@@ -333,13 +351,16 @@ m.step <- function( n, QQ, meas, obs, theta, SMALL ){
 
     for( k in 1:modes ){
     
-        h_alpha[1,k] = (num_alpha[1,k]+SMALL) / (dem_alpha[1,k]+SMALL)
+        #h_alpha[1,k] = (num_alpha[1,k]+SMALL) / (dem_alpha[1,k]+SMALL)
+        h_alpha[1,k] = ratio( num=num_alpha[1,k], dem=dem_alpha[1,k], SMALL=SMALL )
         
-        h_beta[1,k]  = (num_beta[1,k]+SMALL) / (dem_beta[1,k]+SMALL)
+        #h_beta[1,k]  = (num_beta[1,k]+SMALL) / (dem_beta[1,k]+SMALL)
+        h_beta[1,k]  = ratio( num=num_beta[1,k], dem=dem_beta[1,k], SMALL=SMALL )
     }
     
     dem_rho    = choose( n, 2 ) 
-    h_rho[1,1] = (num_rho+SMALL) / (dem_rho+SMALL)
+    #h_rho[1,1] = (num_rho+SMALL) / (dem_rho+SMALL)
+    h_rho[1,1] = ratio( num=num_rho, dem=dem_rho, SMALL=SMALL )
     
     theta[[which(names(theta)=="rho")]]   = h_rho
     theta[[which(names(theta)=="alpha")]] = h_alpha
@@ -352,20 +373,19 @@ m.step <- function( n, QQ, meas, obs, theta, SMALL ){
 
 
 
-adj.log <- function( scale.l=NULL, arg.l=NULL ){
+adj.log <- function( scale.l, arg.l, epsilon=1e-100 ){
 
     result  = 0
-    epsilon = 1e-100 
     
-    if( !is.null(scale.l) && !is.null( arg.l ) ){
+    if( scale.l == 0 && arg.l == 0 ){
+        result = 0
+    } else {
+        if( arg.l == 0 ){ arg.l = arg.l + epsilon }
 
-        if( (scale.l == 0) && (arg.l == 0) ){
-            result = 0
-        } else{
-            result = (scale.l+epsilon)*log((arg.l+epsilon))
-        }        
+        result = scale.l*log(arg.l)
+
     }
-
+        
     return(result)
     
 }
@@ -457,7 +477,7 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
 
             #if( i < j ){
 
-                norm[[1]][i,j] = rho / (1-rho)
+                norm[[1]][i,j] = ratio( num=rho, dem=(1-rho) )
 
                 for( k in 1:modes ){
                     
@@ -467,8 +487,8 @@ edge_odds_ratio <- function( gg, QQ, meas, obs, theta ){
                     alpha.m = alpha[1,k] 
                     beta.m  = beta[1,k]
 
-                    term1[[k]][i,j] = ( alpha.m/beta.m )^(eij.m)
-                    term2[[k]][i,j] = ( (1-alpha.m)/(1-beta.m) )^(nij.m-eij.m)
+                    term1[[k]][i,j] = ratio( num=alpha.m, dem=beta.m )^(eij.m)
+                    term2[[k]][i,j] = ratio( num=(1-alpha.m), dem=(1-beta.m) )^(nij.m-eij.m)
 
                 }
             #}                
