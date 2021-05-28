@@ -1,6 +1,6 @@
 # NetworkReco
 
-Still to work on this and finish... it's a start. Network reconstruction from data, based on Newman's 2018 
+Still to work and finish this - not sure I'm generating the simulated data correctly. Network reconstruction from data, based on Newman's 2018 
 "Stimating network structure from unreliable measurements" algorithm. 
 
 The code to generate simulated network data, and fit using Newman's EM algorithm.
